@@ -1,37 +1,40 @@
 var source = function(){
   var baseElement = document.getElementsByClassName('comic-table')[0];
+  var sidebarElement = document.getElementById('sidebar-under-comic');
 	var containerElement = document.createElement('div');
 	containerElement.className = 'infinite-scroll-container';
 	baseElement.parentElement.insertBefore(containerElement, baseElement);
 	baseElement.parentElement.removeChild(baseElement);
 	containerElement.appendChild(baseElement);
 
-  var nextImageURLFN = function(element){
-		var links = element.getElementsByTagName('a');
-		if(links.length > 1){
-						console.log('Too many links on latest element.');
-						return null;
-		} else if (links.length == 0){
-						console.log('No links on latest element');
-						return null;
+  // Gets the next page from the sidebar part of the DOM
+  var nextPageURLFn = function(element){
+    // First try and get the 'Next Page' link.
+		var nextLinkElement = element.getElementsByTagName('a')
+		if(nextLinkElement.length > 1){
+		  console.log('WTF multiple links available. What do?\nChoices:');
+		  for(var i=0; i<nextLinkElement.length; i++){
+		    console.log(nextLinkElement[i].href);
+		  }
+		  return null;
+		} else if (nextLinkElement.length === 1) {
+		  return nextLinkElement[0].href;
 		} else {
-						var linkToReturn = links[0].href;
-						links[0].setAttribute('old_href', linkToReturn);
-						links[0].removeAttribute('href');
-						return linkToReturn;
+		  return null;
 		}
-	};
+	}
   
 	var nextPageRequest = new XMLHttpRequest();
   
 	var isLoadingNextImage = false;
 	var mostRecentImageElement = baseElement;
-	var nextImageURL = nextImageURLFN(mostRecentImageElement);
-	console.log('Should have called the function thing for next url.');
-	document.body.onscroll = function() {
+	var nextImageURL = nextPageURLFn(document.getElementsByClassName(''));
+	console.log('Should have called the function for next url.');
+	
+	window.onscroll = function() {
 		if(!isLoadingNextImage && mostRecentImageElement.getBoundingClientRect().bottom - window.scrollY <= 0.0){
 			isLoadingNextImage = true;
-			if(nextImageURL != null){
+			if(nextImageURL !== null){
          console.log('Should load next image.!');
 		     nextPageRequest.open('GET',nextImageURL);
 				 nextPageRequest.send();
@@ -45,13 +48,32 @@ var source = function(){
 						console.log('Error retrieving page for url: '+nextImageURL);
 						return;
 		}
+		
+		//Create temporary DOM and load in response for parsing.
     var tempDom = document.createElement('div');
     tempDom.innerHTML = nextPageRequest.responseText;
+    
+    // Find the next panel from the comic
     var nextComicPanel = tempDom.getElementsByClassName('comic-table')[0];
+    var imageEle = nextComicPanel.getElementsByTagName('img')[0];
+    var sidebarEle = nextComicPanel.getElementById('sidebar-under-comic')[0];
+    
+    // Get the next page URL from the DOM.
+    nextImageURL = nextPageURLFn(sidebarEle);
+    imageEle.removeAttribute('href');
+    imageEle.setAttribute('old_href',nextImageURL);
+    
+    // Remove from old DOM
     nextComicPanel.parentElement.removeChild(nextComicPanel);
-    containerElement.insertBefore(nextComicPanel, null);
-    mostRecentImageElement = nextComicPanel;
-    nextImageURL = nextImageURLFN(mostRecentImageElement);
+    containerElement.insertBefore(imageEle, null);
+    mostRecentImageElement = imageEle;
+    
+    // Update the nav-bar
+    //refresh navigation bar
+    var navBarElem = document.getElementsByClassName('comic_navi')[0]
+    sidebarElement.parentElement.replaceChild(tempDom.getElementsByClassName('comic_navi')[0], sidebarElement);
+    sidebarElement = navBarElem;
+    
 		isLoadingNextImage = false;
   } 
 
